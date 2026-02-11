@@ -76,7 +76,7 @@ public class BVHNode
     }
 
     // Novo: realiza a interseção coletando um traço dos nós visitados
-    public bool IntersectTrace(Ray ray, out RaycastHit closestHit, List<BVHNode> visitedNodes, List<BVHNode> passedAABB, List<BVHNode> hitLeaves)
+    public bool IntersectTrace(Ray ray, out RaycastHit closestHit, List<BVHNode> visitedNodes, List<BVHNode> passedAABB, List<BVHNode> hitLeaves, List<MeshCollider> hitColliders)
     {
         closestHit = new RaycastHit();
 
@@ -99,6 +99,7 @@ public class BVHNode
                 if (col.Raycast(ray, out RaycastHit hit, Mathf.Infinity))
                 {
                     if (hitLeaves != null) hitLeaves.Add(this);
+                    if (hitColliders != null) hitColliders.Add(col);
                     closestHit = hit;
                     return true;
                 }
@@ -114,10 +115,10 @@ public class BVHNode
         RaycastHit rightHit = new RaycastHit();
 
         if (left != null)
-            hitLeft = left.IntersectTrace(ray, out leftHit, visitedNodes, passedAABB, hitLeaves);
+            hitLeft = left.IntersectTrace(ray, out leftHit, visitedNodes, passedAABB, hitLeaves, hitColliders);
 
         if (right != null)
-            hitRight = right.IntersectTrace(ray, out rightHit, visitedNodes, passedAABB, hitLeaves);
+            hitRight = right.IntersectTrace(ray, out rightHit, visitedNodes, passedAABB, hitLeaves, hitColliders);
 
         if (hitLeft && hitRight)
         {

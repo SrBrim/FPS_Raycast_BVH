@@ -9,9 +9,13 @@ public class ShotResultDisplay : MonoBehaviour
     private static ShotResultDisplay _instance;
 
     [Header("Display")]
-    public float displayDuration;
+    public float displayDuration = 5f;
     public Vector2 panelSize = new Vector2(360f, 150f);
     public int fontSize = 14;
+
+    public enum Anchor { TopLeft, TopRight, BottomLeft, BottomRight }
+    [Tooltip("Escolha o canto de ancoragem do painel")] public Anchor anchor = Anchor.TopRight;
+    [Tooltip("Offset a partir do canto selecionado (em pixels)")] public Vector2 panelOffset = new Vector2(10f, 10f);
 
     // Dados do último resultado
     private double timeWithout;
@@ -74,9 +78,30 @@ public class ShotResultDisplay : MonoBehaviour
     {
         if (Time.realtimeSinceStartup > expireAt) return;
 
-        // Painel centralizado no topo
-        float x = 10f;
-        float y = 10f;
+        // Calcula posição do painel com base na âncora e offset
+        float x = 0f;
+        float y = 0f;
+
+        switch (anchor)
+        {
+            default:
+            case Anchor.TopLeft:
+                x = panelOffset.x;
+                y = panelOffset.y;
+                break;
+            case Anchor.TopRight:
+                x = Screen.width - panelOffset.x - panelSize.x;
+                y = panelOffset.y;
+                break;
+            case Anchor.BottomLeft:
+                x = panelOffset.x;
+                y = Screen.height - panelOffset.y - panelSize.y;
+                break;
+            case Anchor.BottomRight:
+                x = Screen.width - panelOffset.x - panelSize.x;
+                y = Screen.height - panelOffset.y - panelSize.y;
+                break;
+        }
 
         Rect panelRect = new Rect(x, y, panelSize.x, panelSize.y);
 

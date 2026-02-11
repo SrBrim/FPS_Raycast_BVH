@@ -2,7 +2,7 @@ using UnityEngine;
 using System.Collections.Generic;
 
 // Visualizador da árvore BVH no HUD para um root específico.
-// Chame BVHTraceVisualizer.ShowTraceForRoot(root, visited, passed, hits, duration)
+// Chame BVHTraceVisualizer.ShowTraceForRoot(root, visited, passed, hits, hitColliders, duration)
 // para desenhar a representação completa da árvore e destacar caminho escolhido.
 
 public class BVHTraceVisualizer : MonoBehaviour
@@ -16,10 +16,17 @@ public class BVHTraceVisualizer : MonoBehaviour
     public float nodeSize = 22f;
     public float levelSpacing = 36f;
 
+    [Header("Legend")]
+    [Tooltip("Tamanho da fonte usada nas entradas da legenda")]
+    public int legendFontSize = 14;
+    [Tooltip("Tamanho da caixa colorida na legenda (largura, altura)")]
+    public Vector2 legendSwatchSize = new Vector2(18f, 12f);
+
     // Trace data
     private List<BVHNode> visited = new List<BVHNode>();
     private List<BVHNode> passed = new List<BVHNode>();
     private List<BVHNode> hitLeaves = new List<BVHNode>();
+    private List<MeshCollider> hitColliders = new List<MeshCollider>();
 
     // Root da árvore a ser desenhada
     private BVHNode rootNode = null;
@@ -31,7 +38,7 @@ public class BVHTraceVisualizer : MonoBehaviour
     private List<BVHNode> pathNodes = new List<BVHNode>();
 
     private float expireAt = 0f;
-    public float displayDuration = 5f;
+    public float displayDuration;
 
     private static Texture2D _whiteTex;
 
@@ -62,12 +69,12 @@ public class BVHTraceVisualizer : MonoBehaviour
         }
     }
 
-    public static void ShowTraceForRoot(BVHNode root, List<BVHNode> visitedNodes, List<BVHNode> passedAABB, List<BVHNode> hitLeafNodes, float duration = 30f)
+    public static void ShowTraceForRoot(BVHNode root, List<BVHNode> visitedNodes, List<BVHNode> passedAABB, List<BVHNode> hitLeafNodes, List<MeshCollider> hitCollidersList, float duration = 30f)
     {
-        Instance.SetTraceRoot(root, visitedNodes, passedAABB, hitLeafNodes, duration);
+        Instance.SetTraceRoot(root, visitedNodes, passedAABB, hitLeafNodes, hitCollidersList, duration);
     }
 
-    public void SetTraceRoot(BVHNode root, List<BVHNode> visitedNodes, List<BVHNode> passedAABB, List<BVHNode> hitLeafNodes, float duration)
+    public void SetTraceRoot(BVHNode root, List<BVHNode> visitedNodes, List<BVHNode> passedAABB, List<BVHNode> hitLeafNodes, List<MeshCollider> hitCollidersList, float duration)
     {
         rootNode = root;
 
@@ -104,6 +111,10 @@ public class BVHTraceVisualizer : MonoBehaviour
             hitLeaves = hitLeafNodes != null ? new List<BVHNode>(hitLeafNodes) : new List<BVHNode>();
             hitLeaves.RemoveAll(n => n == null || !allSet.Contains(n) || !n.IsLeaf);
 
+            // hit colliders: keep only those non-null
+            hitColliders = hitCollidersList != null ? new List<MeshCollider>(hitCollidersList) : new List<MeshCollider>();
+            hitColliders.RemoveAll(c => c == null);
+
             // remove duplicates
             visited = new List<BVHNode>(new HashSet<BVHNode>(visited));
             passed = new List<BVHNode>(new HashSet<BVHNode>(passed));
@@ -120,16 +131,40 @@ public class BVHTraceVisualizer : MonoBehaviour
                     if (!parent.TryGetValue(cur, out cur)) break;
                 }
             }
+            else if (hitColliders != null && hitColliders.Count > 0)
+            {
+                // Se não há leaf nodes válidos mas temos colliders, tente mapear colliders para seus SkinnedMeshRenderer e encontrar leaf
+                var col = hitColliders[0];
+                var smr = col.GetComponentInParent<SkinnedMeshRenderer>();
+                if (smr != null)
+                {
+                    // procura leaf cujo leafMesh == smr
+                    BVHNode match = allNodes.Find(n => n.IsLeaf && n.leafMesh == smr);
+                    if (match != null)
+                    {
+                        BVHNode cur = match;
+                        while (cur != null)
+                        {
+                            pathNodes.Insert(0, cur);
+                            if (!parent.TryGetValue(cur, out cur)) break;
+                        }
+
+                        // marque a leaf
+                        if (!hitLeaves.Contains(match)) hitLeaves.Add(match);
+                    }
+                }
+            }
         }
         else
         {
             visited = new List<BVHNode>();
             passed = new List<BVHNode>();
             hitLeaves = new List<BVHNode>();
+            hitColliders = new List<MeshCollider>();
         }
 
         // use the requested duration
-        expireAt = Time.realtimeSinceStartup + duration;
+        expireAt = Time.realtimeSinceStartup + displayDuration;
     }
 
     void EnsureWhiteTex()
@@ -158,6 +193,18 @@ public class BVHTraceVisualizer : MonoBehaviour
             else if (visited.Contains(n)) col = new Color(0.2f, 1f, 1f); // cyan
 
             DrawDebugBounds(n.bounds, col, 0f); // duration 0 so it's drawn every frame
+        }
+
+        // também desenha bounds dos colliders exatos (em verde sólido)
+        foreach (var col in hitColliders)
+        {
+            if (col == null) continue;
+            var b = col.sharedMesh != null ? col.sharedMesh.bounds : new Bounds(col.transform.position, Vector3.one * 0.1f);
+            // transform bounds from collider local to world
+            Matrix4x4 m = col.transform.localToWorldMatrix;
+            Vector3 center = m.MultiplyPoint3x4(b.center);
+            Vector3 extents = Vector3.Scale(b.extents, col.transform.lossyScale);
+            DrawDebugBounds(new Bounds(center, extents * 2f), new Color(0f, 1f, 0.2f), 0f);
         }
 
         // Desenha linhas entre pai e filho
@@ -208,6 +255,7 @@ public class BVHTraceVisualizer : MonoBehaviour
             GUILayout.Label("Legenda:", label);
             DrawLegendEntry("Caminho (root -> hit)", new Color(1f, 0.2f, 0.2f));
             DrawLegendEntry("Hit (leaf)", new Color(0f, 1f, 0.2f));
+            DrawLegendEntry("Hit collider (exato)", new Color(0f, 0.8f, 0f));
             DrawLegendEntry("Passed AABB", new Color(1f, 0.85f, 0f));
             DrawLegendEntry("Visited", new Color(0.2f, 1f, 1f));
             DrawLegendEntry("Outros nós", Color.gray);
@@ -219,10 +267,14 @@ public class BVHTraceVisualizer : MonoBehaviour
     void DrawLegendEntry(string text, Color col)
     {
         Rect r = GUILayoutUtility.GetRect(200, 20);
-        Rect cbox = new Rect(r.x, r.y + 4, 18, 12);
-        Rect lbox = new Rect(r.x + 24, r.y, r.width - 24, 20);
+        Rect cbox = new Rect(r.x, r.y + 4, legendSwatchSize.x, legendSwatchSize.y);
+        Rect lbox = new Rect(r.x + legendSwatchSize.x + 6, r.y, r.width - (legendSwatchSize.x + 6), 20);
         DrawFilledRect(cbox, col);
-        GUI.Label(lbox, text);
+
+        GUIStyle style = new GUIStyle(GUI.skin.label);
+        style.fontSize = legendFontSize;
+        style.alignment = TextAnchor.MiddleLeft;
+        GUI.Label(lbox, text, style);
     }
 
     void DrawTree(Rect panelRect)

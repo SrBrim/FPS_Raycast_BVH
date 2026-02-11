@@ -163,11 +163,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a6581e8509af99c43a5048bf38393b2c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BVHTraceVisualizer
-  panelPos: {x: 1200, y: 170}
+  panelPos: {x: 10, y: 170}
   panelSize: {x: 600, y: 600}
   fontSize: 30
   nodeSize: 30
-  columnPadding: 20
+  levelSpacing: 36
+  legendFontSize: 25
+  legendSwatchSize: {x: 18, y: 12}
   displayDuration: 30
 --- !u!1 &164572219
 GameObject:
@@ -216,7 +218,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemySpawner
   enemyPrefab: {fileID: 4493914613880827488, guid: 6dc4cf4496348884d8ee27743ae38562, type: 3}
-  amount: 10
+  amount: 50
 --- !u!114 &164572223
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -230,7 +232,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemySpawner
   enemyPrefab: {fileID: 1264433200921298619, guid: b91f2cacb0bef7f4bac8f61b0f00b4c6, type: 3}
-  amount: 10
+  amount: 50
 --- !u!114 &164572224
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -244,7 +246,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemySpawner
   enemyPrefab: {fileID: 7892507227370252710, guid: 05af3b40364d35147b91ab3add4f89cf, type: 3}
-  amount: 10
+  amount: 50
 --- !u!1 &221775013
 GameObject:
   m_ObjectHideFlags: 0
@@ -772,6 +774,8 @@ MonoBehaviour:
   displayDuration: 10
   panelSize: {x: 450, y: 600}
   fontSize: 30
+  anchor: 1
+  panelOffset: {x: 10, y: 10}
 --- !u!1 &593548384
 GameObject:
   m_ObjectHideFlags: 0
