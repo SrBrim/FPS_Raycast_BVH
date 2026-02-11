@@ -1,10 +1,9 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-// Visualizador simples da árvore BVH no HUD quando um inimigo é atingido/detectado.
-// Funciona assim:
-// - Chame BVHTraceVisualizer.ShowTrace(...) passando listas de nós visitados/passatados/folhas atingidas.
-// - O visualizador desenha um painel com uma árvore simplificada e destaca o caminho escolhido.
+// Visualizador da árvore BVH no HUD para um root específico.
+// Chame BVHTraceVisualizer.ShowTraceForRoot(root, visited, passed, hits, duration)
+// para desenhar a representação completa da árvore e destacar caminho escolhido.
 
 public class BVHTraceVisualizer : MonoBehaviour
 {
@@ -21,6 +20,15 @@ public class BVHTraceVisualizer : MonoBehaviour
     private List<BVHNode> visited = new List<BVHNode>();
     private List<BVHNode> passed = new List<BVHNode>();
     private List<BVHNode> hitLeaves = new List<BVHNode>();
+
+    // Root da árvore a ser desenhada
+    private BVHNode rootNode = null;
+
+    // Todos os nós da árvore (preenchido a partir do root)
+    private List<BVHNode> allNodes = new List<BVHNode>();
+
+    // Path from root to first hit leaf (if any)
+    private List<BVHNode> pathNodes = new List<BVHNode>();
 
     private float expireAt = 0f;
     public float displayDuration = 5f;
@@ -54,16 +62,73 @@ public class BVHTraceVisualizer : MonoBehaviour
         }
     }
 
-    public static void ShowTrace(List<BVHNode> visitedNodes, List<BVHNode> passedAABB, List<BVHNode> hitLeafNodes, float duration = 5f)
+    public static void ShowTraceForRoot(BVHNode root, List<BVHNode> visitedNodes, List<BVHNode> passedAABB, List<BVHNode> hitLeafNodes, float duration = 30f)
     {
-        Instance.SetTrace(visitedNodes, passedAABB, hitLeafNodes, duration);
+        Instance.SetTraceRoot(root, visitedNodes, passedAABB, hitLeafNodes, duration);
     }
 
-    public void SetTrace(List<BVHNode> visitedNodes, List<BVHNode> passedAABB, List<BVHNode> hitLeafNodes, float duration)
+    public void SetTraceRoot(BVHNode root, List<BVHNode> visitedNodes, List<BVHNode> passedAABB, List<BVHNode> hitLeafNodes, float duration)
     {
-        visited = visitedNodes != null ? new List<BVHNode>(visitedNodes) : new List<BVHNode>();
-        passed = passedAABB != null ? new List<BVHNode>(passedAABB) : new List<BVHNode>();
-        hitLeaves = hitLeafNodes != null ? new List<BVHNode>(hitLeafNodes) : new List<BVHNode>();
+        rootNode = root;
+
+        // Preenche allNodes fazendo BFS a partir do root
+        allNodes.Clear();
+        pathNodes.Clear();
+
+        if (rootNode != null)
+        {
+            Queue<BVHNode> q = new Queue<BVHNode>();
+            Dictionary<BVHNode, BVHNode> parent = new Dictionary<BVHNode, BVHNode>();
+            HashSet<BVHNode> seen = new HashSet<BVHNode>();
+            q.Enqueue(rootNode);
+            seen.Add(rootNode);
+            parent[rootNode] = null;
+            while (q.Count > 0)
+            {
+                var n = q.Dequeue();
+                allNodes.Add(n);
+                if (n.left != null && !seen.Contains(n.left)) { q.Enqueue(n.left); seen.Add(n.left); parent[n.left] = n; }
+                if (n.right != null && !seen.Contains(n.right)) { q.Enqueue(n.right); seen.Add(n.right); parent[n.right] = n; }
+            }
+
+            // Normalize and filter incoming lists to the nodes in this actual tree
+            HashSet<BVHNode> allSet = new HashSet<BVHNode>(allNodes);
+
+            visited = visitedNodes != null ? new List<BVHNode>(visitedNodes) : new List<BVHNode>();
+            visited.RemoveAll(n => n == null || !allSet.Contains(n));
+
+            passed = passedAABB != null ? new List<BVHNode>(passedAABB) : new List<BVHNode>();
+            passed.RemoveAll(n => n == null || !allSet.Contains(n));
+
+            // Keep only valid leaf nodes that belong to this tree
+            hitLeaves = hitLeafNodes != null ? new List<BVHNode>(hitLeafNodes) : new List<BVHNode>();
+            hitLeaves.RemoveAll(n => n == null || !allSet.Contains(n) || !n.IsLeaf);
+
+            // remove duplicates
+            visited = new List<BVHNode>(new HashSet<BVHNode>(visited));
+            passed = new List<BVHNode>(new HashSet<BVHNode>(passed));
+            hitLeaves = new List<BVHNode>(new HashSet<BVHNode>(hitLeaves));
+
+            // Se houver folhas atingidas, constrói o caminho para a primeira delas
+            if (hitLeaves != null && hitLeaves.Count > 0)
+            {
+                var leaf = hitLeaves[0];
+                BVHNode cur = leaf;
+                while (cur != null)
+                {
+                    pathNodes.Insert(0, cur);
+                    if (!parent.TryGetValue(cur, out cur)) break;
+                }
+            }
+        }
+        else
+        {
+            visited = new List<BVHNode>();
+            passed = new List<BVHNode>();
+            hitLeaves = new List<BVHNode>();
+        }
+
+        // use the requested duration
         expireAt = Time.realtimeSinceStartup + duration;
     }
 
@@ -74,6 +139,40 @@ public class BVHTraceVisualizer : MonoBehaviour
             _whiteTex = new Texture2D(1, 1);
             _whiteTex.SetPixel(0, 0, Color.white);
             _whiteTex.Apply();
+        }
+    }
+
+    void Update()
+    {
+        // Enquanto visível, desenha Bounds/linhas no Game view para garantir que apareça
+        if (Time.realtimeSinceStartup > expireAt) return;
+        if (rootNode == null) return;
+
+        // Desenha caixas no Game view (aproximação com linhas) usando Debug.DrawLine
+        foreach (var n in allNodes)
+        {
+            Color col = Color.gray;
+            if (pathNodes.Contains(n)) col = new Color(1f, 0.2f, 0.2f); // strong red
+            else if (hitLeaves.Contains(n)) col = new Color(0f, 1f, 0.2f); // bright green
+            else if (passed.Contains(n)) col = new Color(1f, 0.85f, 0f); // yellow
+            else if (visited.Contains(n)) col = new Color(0.2f, 1f, 1f); // cyan
+
+            DrawDebugBounds(n.bounds, col, 0f); // duration 0 so it's drawn every frame
+        }
+
+        // Desenha linhas entre pai e filho
+        foreach (var n in allNodes)
+        {
+            if (n.left != null)
+                Debug.DrawLine(n.bounds.center, n.left.bounds.center, Color.white);
+            if (n.right != null)
+                Debug.DrawLine(n.bounds.center, n.right.bounds.center, Color.white);
+        }
+
+        // Desenha destaque do caminho em vermelho mais forte
+        for (int i = 0; i < pathNodes.Count - 1; i++)
+        {
+            Debug.DrawLine(pathNodes[i].bounds.center, pathNodes[i + 1].bounds.center, Color.red);
         }
     }
 
@@ -100,40 +199,49 @@ public class BVHTraceVisualizer : MonoBehaviour
 
         GUILayout.Space(6);
 
-        if (visited.Count > 0)
+        if (rootNode != null && allNodes.Count > 0)
         {
             DrawTree(panelRect);
+            GUILayout.Space(6);
+
+            // legend
+            GUILayout.Label("Legenda:", label);
+            DrawLegendEntry("Caminho (root -> hit)", new Color(1f, 0.2f, 0.2f));
+            DrawLegendEntry("Hit (leaf)", new Color(0f, 1f, 0.2f));
+            DrawLegendEntry("Passed AABB", new Color(1f, 0.85f, 0f));
+            DrawLegendEntry("Visited", new Color(0.2f, 1f, 1f));
+            DrawLegendEntry("Outros nós", Color.gray);
         }
 
         GUILayout.EndArea();
     }
 
+    void DrawLegendEntry(string text, Color col)
+    {
+        Rect r = GUILayoutUtility.GetRect(200, 20);
+        Rect cbox = new Rect(r.x, r.y + 4, 18, 12);
+        Rect lbox = new Rect(r.x + 24, r.y, r.width - 24, 20);
+        DrawFilledRect(cbox, col);
+        GUI.Label(lbox, text);
+    }
+
     void DrawTree(Rect panelRect)
     {
-        // Constrói conjunto dos nós relevantes (visitados)
-        HashSet<BVHNode> nodesSet = new HashSet<BVHNode>(visited);
-
-        BVHNode root = visited[0];
-
-        // BFS para agrupar por profundidade, apenas incluindo nós que estão no nodesSet
+        // Agrupa por profundidade (BFS)
         Dictionary<int, List<BVHNode>> byDepth = new Dictionary<int, List<BVHNode>>();
-        Queue<(BVHNode node, int depth)> q = new Queue<(BVHNode, int)>();
-        HashSet<BVHNode> seen = new HashSet<BVHNode>();
-        q.Enqueue((root, 0));
-        seen.Add(root);
-
+        Queue<(BVHNode node, int depth)> q2 = new Queue<(BVHNode, int)>();
+        q2.Enqueue((rootNode, 0));
+        HashSet<BVHNode> seen2 = new HashSet<BVHNode>();
+        seen2.Add(rootNode);
         int maxDepth = 0;
-        while (q.Count > 0)
+        while (q2.Count > 0)
         {
-            var (n, d) = q.Dequeue();
-            if (!nodesSet.Contains(n)) continue;
-
+            var (n, d) = q2.Dequeue();
             if (!byDepth.ContainsKey(d)) byDepth[d] = new List<BVHNode>();
             byDepth[d].Add(n);
             if (d > maxDepth) maxDepth = d;
-
-            if (n.left != null && !seen.Contains(n.left)) { q.Enqueue((n.left, d + 1)); seen.Add(n.left); }
-            if (n.right != null && !seen.Contains(n.right)) { q.Enqueue((n.right, d + 1)); seen.Add(n.right); }
+            if (n.left != null && !seen2.Contains(n.left)) { q2.Enqueue((n.left, d + 1)); seen2.Add(n.left); }
+            if (n.right != null && !seen2.Contains(n.right)) { q2.Enqueue((n.right, d + 1)); seen2.Add(n.right); }
         }
 
         // Calcula posições
@@ -170,7 +278,7 @@ public class BVHTraceVisualizer : MonoBehaviour
             }
         }
 
-        // Desenha nós
+        // Desenha nós com destaque para o caminho
         foreach (var kv in positions)
         {
             BVHNode n = kv.Key;
@@ -178,9 +286,10 @@ public class BVHTraceVisualizer : MonoBehaviour
             Rect r = new Rect(p.x - nodeSize / 2f, p.y - nodeSize / 2f, nodeSize, nodeSize);
 
             Color c = Color.gray;
-            if (hitLeaves.Contains(n)) c = Color.green;
-            else if (passed.Contains(n)) c = Color.yellow;
-            else if (visited.Contains(n)) c = Color.cyan;
+            if (pathNodes.Contains(n)) c = new Color(1f, 0.2f, 0.2f);
+            else if (hitLeaves.Contains(n)) c = new Color(0f, 1f, 0.2f);
+            else if (passed.Contains(n)) c = new Color(1f, 0.85f, 0f);
+            else if (visited.Contains(n)) c = new Color(0.2f, 1f, 1f);
 
             DrawFilledRect(r, c);
 
@@ -214,5 +323,74 @@ public class BVHTraceVisualizer : MonoBehaviour
         GUI.DrawTexture(new Rect(a.x, a.y - width / 2f, len, width), _whiteTex);
         GUI.matrix = savedMatrix;
         GUI.color = oldColor;
+    }
+
+    void DrawDebugBounds(Bounds b, Color col, float duration)
+    {
+        Vector3 c = b.center;
+        Vector3 e = b.extents;
+
+        // 8 corners
+        Vector3[] corners = new Vector3[8];
+        corners[0] = c + new Vector3(-e.x, -e.y, -e.z);
+        corners[1] = c + new Vector3(e.x, -e.y, -e.z);
+        corners[2] = c + new Vector3(e.x, -e.y, e.z);
+        corners[3] = c + new Vector3(-e.x, -e.y, e.z);
+        corners[4] = c + new Vector3(-e.x, e.y, -e.z);
+        corners[5] = c + new Vector3(e.x, e.y, -e.z);
+        corners[6] = c + new Vector3(e.x, e.y, e.z);
+        corners[7] = c + new Vector3(-e.x, e.y, e.z);
+
+        // bottom
+        Debug.DrawLine(corners[0], corners[1], col, duration);
+        Debug.DrawLine(corners[1], corners[2], col, duration);
+        Debug.DrawLine(corners[2], corners[3], col, duration);
+        Debug.DrawLine(corners[3], corners[0], col, duration);
+
+        // top
+        Debug.DrawLine(corners[4], corners[5], col, duration);
+        Debug.DrawLine(corners[5], corners[6], col, duration);
+        Debug.DrawLine(corners[6], corners[7], col, duration);
+        Debug.DrawLine(corners[7], corners[4], col, duration);
+
+        // sides
+        Debug.DrawLine(corners[0], corners[4], col, duration);
+        Debug.DrawLine(corners[1], corners[5], col, duration);
+        Debug.DrawLine(corners[2], corners[6], col, duration);
+        Debug.DrawLine(corners[3], corners[7], col, duration);
+    }
+
+    void OnDrawGizmos()
+    {
+        if (rootNode == null) return;
+
+        // desenha todos os bounds
+        HashSet<BVHNode> visitedSet = new HashSet<BVHNode>(visited);
+        HashSet<BVHNode> passedSet = new HashSet<BVHNode>(passed);
+        HashSet<BVHNode> hitSet = new HashSet<BVHNode>(hitLeaves);
+
+        foreach (var n in allNodes)
+        {
+            if (n == null) continue;
+            Color c = Color.gray;
+            if (pathNodes.Contains(n)) c = new Color(1f, 0.2f, 0.2f);
+            else if (hitSet.Contains(n)) c = new Color(0f, 1f, 0.2f);
+            else if (passedSet.Contains(n)) c = new Color(1f, 0.85f, 0f);
+            else if (visitedSet.Contains(n)) c = new Color(0.2f, 1f, 1f);
+
+            Gizmos.color = c;
+            Gizmos.DrawWireCube(n.bounds.center, n.bounds.size);
+
+            if (n.left != null)
+            {
+                Gizmos.color = Color.white;
+                Gizmos.DrawLine(n.bounds.center, n.left.bounds.center);
+            }
+            if (n.right != null)
+            {
+                Gizmos.color = Color.white;
+                Gizmos.DrawLine(n.bounds.center, n.right.bounds.center);
+            }
+        }
     }
 }

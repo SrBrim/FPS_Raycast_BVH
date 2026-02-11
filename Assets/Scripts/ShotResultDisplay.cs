@@ -9,7 +9,7 @@ public class ShotResultDisplay : MonoBehaviour
     private static ShotResultDisplay _instance;
 
     [Header("Display")]
-    public float displayDuration = 5f;
+    public float displayDuration;
     public Vector2 panelSize = new Vector2(360f, 150f);
     public int fontSize = 14;
 

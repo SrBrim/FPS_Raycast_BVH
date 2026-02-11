@@ -33,7 +33,7 @@ public class RaycastShooterBVH : MonoBehaviour
             return;
         }
 
-        // 🎯 Ray central da tela (mira)
+        // ?? Ray central da tela (mira)
         Ray screenRay = cam.ScreenPointToRay(
             new Vector3(Screen.width / 2f, Screen.height / 2f)
         );
@@ -49,7 +49,7 @@ public class RaycastShooterBVH : MonoBehaviour
             targetPoint = screenRay.GetPoint(maxDistance);
         }
 
-        // 🔫 Direção real do tiro sai do firePoint
+        // ?? Direção real do tiro sai do firePoint
         Vector3 shootDirection =
             (targetPoint - firePoint.position).normalized;
 
@@ -65,7 +65,7 @@ public class RaycastShooterBVH : MonoBehaviour
         Stopwatch sw = new Stopwatch();
 
         // ==============================
-        // 🔴 FORÇA BRUTA (SEM BVH)
+        // ?? FORÇA BRUTA (SEM BVH)
         // ==============================
         int bruteTests = 0;
 
@@ -96,7 +96,7 @@ public class RaycastShooterBVH : MonoBehaviour
         sw.Reset();
 
         // ==============================
-        // 🟢 COM BVH
+        // ?? COM BVH
         // ==============================
         int bvhRootTests = 0;
 
@@ -104,10 +104,11 @@ public class RaycastShooterBVH : MonoBehaviour
         RaycastHit closestHit = new RaycastHit();
         float closestDistance = Mathf.Infinity;
 
-        // prepare trace lists
-        List<BVHNode> visitedNodes = new List<BVHNode>();
-        List<BVHNode> passedAABB = new List<BVHNode>();
-        List<BVHNode> hitLeaves = new List<BVHNode>();
+        // Variables to store trace for the chosen enemy
+        BVHNode traceRootToShow = null;
+        List<BVHNode> traceVisited = null;
+        List<BVHNode> tracePassed = null;
+        List<BVHNode> traceHits = null;
 
         sw.Start();
 
@@ -120,8 +121,13 @@ public class RaycastShooterBVH : MonoBehaviour
 
             bvhRootTests++;
 
+            // create per-enemy trace lists (avoid mixing)
+            List<BVHNode> visitedNodesLocal = new List<BVHNode>();
+            List<BVHNode> passedAABBL = new List<BVHNode>();
+            List<BVHNode> hitLeavesLocal = new List<BVHNode>();
+
             // usa IntersectTrace para coletar informações do caminho
-            if (enemy.root.IntersectTrace(shootRay, out RaycastHit bvhHit, visitedNodes, passedAABB, hitLeaves))
+            if (enemy.root.IntersectTrace(shootRay, out RaycastHit bvhHit, visitedNodesLocal, passedAABBL, hitLeavesLocal))
             {
                 // Filtra por maxDistance para manter consistência com a verificação força bruta
                 if (bvhHit.distance <= maxDistance && bvhHit.distance < closestDistance)
@@ -129,6 +135,12 @@ public class RaycastShooterBVH : MonoBehaviour
                     closestDistance = bvhHit.distance;
                     closestHit = bvhHit;
                     closestEnemy = enemy;
+
+                    // store trace data for this chosen enemy
+                    traceRootToShow = enemy.root;
+                    traceVisited = visitedNodesLocal;
+                    tracePassed = passedAABBL;
+                    traceHits = hitLeavesLocal;
                 }
             }
         }
@@ -154,10 +166,10 @@ public class RaycastShooterBVH : MonoBehaviour
 
         ShotResultDisplay.Show(timeWithout, timeWith, bruteTests, bvhRootTests, hitName, hitPoint, didHit);
 
-        // Envia trace para visualizador BVH (se houver dados)
-        if (visitedNodes.Count > 0)
+        // Show BVH visualizer for the chosen enemy only
+        if (traceRootToShow != null)
         {
-            BVHTraceVisualizer.ShowTrace(visitedNodes, passedAABB, hitLeaves, 6f);
+            BVHTraceVisualizer.ShowTraceForRoot(traceRootToShow, traceVisited, tracePassed, traceHits, 6f);
         }
 
         Vector3 finalHitPoint =

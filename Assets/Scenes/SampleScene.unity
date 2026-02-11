@@ -119,6 +119,56 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &44169553
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 44169554}
+  - component: {fileID: 44169555}
+  m_Layer: 0
+  m_Name: BVHTraceVisualizer
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &44169554
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 44169553}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -83.85834, y: 68.281555, z: -512.0139}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 474769234}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &44169555
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 44169553}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a6581e8509af99c43a5048bf38393b2c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BVHTraceVisualizer
+  panelPos: {x: 1200, y: 170}
+  panelSize: {x: 600, y: 600}
+  fontSize: 30
+  nodeSize: 30
+  columnPadding: 20
+  displayDuration: 30
 --- !u!1 &164572219
 GameObject:
   m_ObjectHideFlags: 0
@@ -166,7 +216,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemySpawner
   enemyPrefab: {fileID: 4493914613880827488, guid: 6dc4cf4496348884d8ee27743ae38562, type: 3}
-  amount: 1
+  amount: 10
 --- !u!114 &164572223
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -180,7 +230,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemySpawner
   enemyPrefab: {fileID: 1264433200921298619, guid: b91f2cacb0bef7f4bac8f61b0f00b4c6, type: 3}
-  amount: 1
+  amount: 10
 --- !u!114 &164572224
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -194,7 +244,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemySpawner
   enemyPrefab: {fileID: 7892507227370252710, guid: 05af3b40364d35147b91ab3add4f89cf, type: 3}
-  amount: 1
+  amount: 10
 --- !u!1 &221775013
 GameObject:
   m_ObjectHideFlags: 0
@@ -615,6 +665,7 @@ GameObject:
   - component: {fileID: 474769237}
   - component: {fileID: 474769236}
   - component: {fileID: 474769235}
+  - component: {fileID: 474769238}
   m_Layer: 5
   m_Name: Canvas
   m_TagString: Untagged
@@ -634,6 +685,7 @@ RectTransform:
   m_LocalScale: {x: 0, y: 0, z: 0}
   m_ConstrainProportionsScale: 0
   m_Children:
+  - {fileID: 44169554}
   - {fileID: 1323645464}
   m_Father: {fileID: 593548385}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -700,11 +752,26 @@ Canvas:
   m_OverridePixelPerfect: 0
   m_SortingBucketNormalizedSize: 0
   m_VertexColorAlwaysGammaSpace: 0
-  m_AdditionalShaderChannelsFlag: 0
+  m_AdditionalShaderChannelsFlag: 25
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 0
   m_SortingOrder: 0
   m_TargetDisplay: 0
+--- !u!114 &474769238
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 474769233}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2d6ccf01e5250dc41ad502a855980de5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ShotResultDisplay
+  displayDuration: 10
+  panelSize: {x: 450, y: 600}
+  fontSize: 30
 --- !u!1 &593548384
 GameObject:
   m_ObjectHideFlags: 0
