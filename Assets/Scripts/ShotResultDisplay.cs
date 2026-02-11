@@ -1,8 +1,6 @@
 using UnityEngine;
 
-// Simples painel para exibir o resultado do tiro de forma legível.
-// Uso:
-// ShotResultDisplay.Show(timeWithout, timeWith, bruteTests, bvhRootTests, hitName, hitPoint, didHit);
+
 
 public class ShotResultDisplay : MonoBehaviour
 {
@@ -17,7 +15,7 @@ public class ShotResultDisplay : MonoBehaviour
     [Tooltip("Escolha o canto de ancoragem do painel")] public Anchor anchor = Anchor.TopRight;
     [Tooltip("Offset a partir do canto selecionado (em pixels)")] public Vector2 panelOffset = new Vector2(10f, 10f);
 
-    // Dados do último resultado
+   
     private double timeWithout;
     private double timeWith;
     private int bruteTests;
@@ -27,7 +25,7 @@ public class ShotResultDisplay : MonoBehaviour
     private bool didHit;
     private float expireAt = 0f;
 
-    // Acesso rápido
+    
     public static ShotResultDisplay Instance
     {
         get
@@ -55,7 +53,7 @@ public class ShotResultDisplay : MonoBehaviour
         }
     }
 
-    // Método público simples para mostrar os dados
+   
     public void ShowResult(double timeWithout, double timeWith, int bruteTests, int bvhRootTests, string hitName, Vector3 hitPoint, bool didHit)
     {
         this.timeWithout = timeWithout;
@@ -68,7 +66,7 @@ public class ShotResultDisplay : MonoBehaviour
         this.expireAt = Time.realtimeSinceStartup + displayDuration;
     }
 
-    // Static helper para chamar de qualquer lugar
+    
     public static void Show(double timeWithout, double timeWith, int bruteTests, int bvhRootTests, string hitName, Vector3 hitPoint, bool didHit)
     {
         Instance.ShowResult(timeWithout, timeWith, bruteTests, bvhRootTests, hitName, hitPoint, didHit);
@@ -78,7 +76,7 @@ public class ShotResultDisplay : MonoBehaviour
     {
         if (Time.realtimeSinceStartup > expireAt) return;
 
-        // Calcula posição do painel com base na âncora e offset
+        
         float x = 0f;
         float y = 0f;
 

@@ -20,20 +20,20 @@ public class BVHNode
     {
         closestHit = new RaycastHit();
 
-        // Corta se AABB não é atingido
+        // corta se AABB não é atingido
         if (!bounds.IntersectRay(ray))
             return false;
 
         if (IsLeaf)
         {
-            // Procura todos os MeshCollider no objeto do SkinnedMeshRenderer e filhos
+            
             MeshCollider[] cols = leafMesh.GetComponentsInChildren<MeshCollider>();
             foreach (var col in cols)
             {
                 if (col == null || !col.enabled || !col.gameObject.activeInHierarchy)
                     continue;
 
-                // Testa colisão; chamador filtra por maxDistance
+                
                 if (col.Raycast(ray, out RaycastHit hit, Mathf.Infinity))
                 {
                     closestHit = hit;
@@ -75,14 +75,14 @@ public class BVHNode
         return false;
     }
 
-    // Novo: realiza a interseção coletando um traço dos nós visitados
+    
     public bool IntersectTrace(Ray ray, out RaycastHit closestHit, List<BVHNode> visitedNodes, List<BVHNode> passedAABB, List<BVHNode> hitLeaves, List<MeshCollider> hitColliders)
     {
         closestHit = new RaycastHit();
 
         if (visitedNodes != null) visitedNodes.Add(this);
 
-        // Corta se AABB não é atingido
+        // corta se AABB não é atingido
         if (!bounds.IntersectRay(ray))
             return false;
 

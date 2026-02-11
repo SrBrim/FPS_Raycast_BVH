@@ -1,9 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-// Visualizador da árvore BVH no HUD para um root específico.
-// Chame BVHTraceVisualizer.ShowTraceForRoot(root, visited, passed, hits, hitColliders, duration)
-// para desenhar a representação completa da árvore e destacar caminho escolhido.
 
 public class BVHTraceVisualizer : MonoBehaviour
 {
@@ -22,19 +19,17 @@ public class BVHTraceVisualizer : MonoBehaviour
     [Tooltip("Tamanho da caixa colorida na legenda (largura, altura)")]
     public Vector2 legendSwatchSize = new Vector2(18f, 12f);
 
-    // Trace data
+    
     private List<BVHNode> visited = new List<BVHNode>();
     private List<BVHNode> passed = new List<BVHNode>();
     private List<BVHNode> hitLeaves = new List<BVHNode>();
     private List<MeshCollider> hitColliders = new List<MeshCollider>();
 
-    // Root da árvore a ser desenhada
+    
     private BVHNode rootNode = null;
 
-    // Todos os nós da árvore (preenchido a partir do root)
     private List<BVHNode> allNodes = new List<BVHNode>();
 
-    // Path from root to first hit leaf (if any)
     private List<BVHNode> pathNodes = new List<BVHNode>();
 
     private float expireAt = 0f;
@@ -78,7 +73,7 @@ public class BVHTraceVisualizer : MonoBehaviour
     {
         rootNode = root;
 
-        // Preenche allNodes fazendo BFS a partir do root
+        
         allNodes.Clear();
         pathNodes.Clear();
 
@@ -98,7 +93,7 @@ public class BVHTraceVisualizer : MonoBehaviour
                 if (n.right != null && !seen.Contains(n.right)) { q.Enqueue(n.right); seen.Add(n.right); parent[n.right] = n; }
             }
 
-            // Normalize and filter incoming lists to the nodes in this actual tree
+            
             HashSet<BVHNode> allSet = new HashSet<BVHNode>(allNodes);
 
             visited = visitedNodes != null ? new List<BVHNode>(visitedNodes) : new List<BVHNode>();
@@ -107,20 +102,20 @@ public class BVHTraceVisualizer : MonoBehaviour
             passed = passedAABB != null ? new List<BVHNode>(passedAABB) : new List<BVHNode>();
             passed.RemoveAll(n => n == null || !allSet.Contains(n));
 
-            // Keep only valid leaf nodes that belong to this tree
+            
             hitLeaves = hitLeafNodes != null ? new List<BVHNode>(hitLeafNodes) : new List<BVHNode>();
             hitLeaves.RemoveAll(n => n == null || !allSet.Contains(n) || !n.IsLeaf);
 
-            // hit colliders: keep only those non-null
+            
             hitColliders = hitCollidersList != null ? new List<MeshCollider>(hitCollidersList) : new List<MeshCollider>();
             hitColliders.RemoveAll(c => c == null);
 
-            // remove duplicates
+            
             visited = new List<BVHNode>(new HashSet<BVHNode>(visited));
             passed = new List<BVHNode>(new HashSet<BVHNode>(passed));
             hitLeaves = new List<BVHNode>(new HashSet<BVHNode>(hitLeaves));
 
-            // Se houver folhas atingidas, constrói o caminho para a primeira delas
+           
             if (hitLeaves != null && hitLeaves.Count > 0)
             {
                 var leaf = hitLeaves[0];
@@ -133,12 +128,12 @@ public class BVHTraceVisualizer : MonoBehaviour
             }
             else if (hitColliders != null && hitColliders.Count > 0)
             {
-                // Se não há leaf nodes válidos mas temos colliders, tente mapear colliders para seus SkinnedMeshRenderer e encontrar leaf
+                
                 var col = hitColliders[0];
                 var smr = col.GetComponentInParent<SkinnedMeshRenderer>();
                 if (smr != null)
                 {
-                    // procura leaf cujo leafMesh == smr
+                    
                     BVHNode match = allNodes.Find(n => n.IsLeaf && n.leafMesh == smr);
                     if (match != null)
                     {
@@ -163,7 +158,6 @@ public class BVHTraceVisualizer : MonoBehaviour
             hitColliders = new List<MeshCollider>();
         }
 
-        // use the requested duration
         expireAt = Time.realtimeSinceStartup + displayDuration;
     }
 
@@ -179,35 +173,35 @@ public class BVHTraceVisualizer : MonoBehaviour
 
     void Update()
     {
-        // Enquanto visível, desenha Bounds/linhas no Game view para garantir que apareça
+        
         if (Time.realtimeSinceStartup > expireAt) return;
         if (rootNode == null) return;
 
-        // Desenha caixas no Game view (aproximação com linhas) usando Debug.DrawLine
+        
         foreach (var n in allNodes)
         {
             Color col = Color.gray;
-            if (pathNodes.Contains(n)) col = new Color(1f, 0.2f, 0.2f); // strong red
-            else if (hitLeaves.Contains(n)) col = new Color(0f, 1f, 0.2f); // bright green
-            else if (passed.Contains(n)) col = new Color(1f, 0.85f, 0f); // yellow
-            else if (visited.Contains(n)) col = new Color(0.2f, 1f, 1f); // cyan
+            if (pathNodes.Contains(n)) col = new Color(1f, 0.2f, 0.2f); 
+            else if (hitLeaves.Contains(n)) col = new Color(0f, 1f, 0.2f); 
+            else if (passed.Contains(n)) col = new Color(1f, 0.85f, 0f); 
+            else if (visited.Contains(n)) col = new Color(0.2f, 1f, 1f); 
 
-            DrawDebugBounds(n.bounds, col, 0f); // duration 0 so it's drawn every frame
+            DrawDebugBounds(n.bounds, col, 0f); 
         }
 
-        // também desenha bounds dos colliders exatos (em verde sólido)
+        
         foreach (var col in hitColliders)
         {
             if (col == null) continue;
             var b = col.sharedMesh != null ? col.sharedMesh.bounds : new Bounds(col.transform.position, Vector3.one * 0.1f);
-            // transform bounds from collider local to world
+            
             Matrix4x4 m = col.transform.localToWorldMatrix;
             Vector3 center = m.MultiplyPoint3x4(b.center);
             Vector3 extents = Vector3.Scale(b.extents, col.transform.lossyScale);
             DrawDebugBounds(new Bounds(center, extents * 2f), new Color(0f, 1f, 0.2f), 0f);
         }
 
-        // Desenha linhas entre pai e filho
+        
         foreach (var n in allNodes)
         {
             if (n.left != null)
@@ -216,7 +210,7 @@ public class BVHTraceVisualizer : MonoBehaviour
                 Debug.DrawLine(n.bounds.center, n.right.bounds.center, Color.white);
         }
 
-        // Desenha destaque do caminho em vermelho mais forte
+        
         for (int i = 0; i < pathNodes.Count - 1; i++)
         {
             Debug.DrawLine(pathNodes[i].bounds.center, pathNodes[i + 1].bounds.center, Color.red);
@@ -251,7 +245,7 @@ public class BVHTraceVisualizer : MonoBehaviour
             DrawTree(panelRect);
             GUILayout.Space(6);
 
-            // legend
+            // legenda
             GUILayout.Label("Legenda:", label);
             DrawLegendEntry("Caminho (root -> hit)", new Color(1f, 0.2f, 0.2f));
             DrawLegendEntry("Hit (leaf)", new Color(0f, 1f, 0.2f));
@@ -279,7 +273,7 @@ public class BVHTraceVisualizer : MonoBehaviour
 
     void DrawTree(Rect panelRect)
     {
-        // Agrupa por profundidade (BFS)
+        
         Dictionary<int, List<BVHNode>> byDepth = new Dictionary<int, List<BVHNode>>();
         Queue<(BVHNode node, int depth)> q2 = new Queue<(BVHNode, int)>();
         q2.Enqueue((rootNode, 0));
@@ -296,7 +290,7 @@ public class BVHTraceVisualizer : MonoBehaviour
             if (n.right != null && !seen2.Contains(n.right)) { q2.Enqueue((n.right, d + 1)); seen2.Add(n.right); }
         }
 
-        // Calcula posições
+        
         Dictionary<BVHNode, Vector2> positions = new Dictionary<BVHNode, Vector2>();
         float areaX = panelRect.x + 12;
         float areaY = panelRect.y + 80;
@@ -315,7 +309,7 @@ public class BVHTraceVisualizer : MonoBehaviour
             }
         }
 
-        // Desenha linhas entre pai e filho (se ambos presentes)
+        
         foreach (var kv in positions)
         {
             BVHNode n = kv.Key;
@@ -330,7 +324,7 @@ public class BVHTraceVisualizer : MonoBehaviour
             }
         }
 
-        // Desenha nós com destaque para o caminho
+        
         foreach (var kv in positions)
         {
             BVHNode n = kv.Key;
@@ -382,7 +376,7 @@ public class BVHTraceVisualizer : MonoBehaviour
         Vector3 c = b.center;
         Vector3 e = b.extents;
 
-        // 8 corners
+        
         Vector3[] corners = new Vector3[8];
         corners[0] = c + new Vector3(-e.x, -e.y, -e.z);
         corners[1] = c + new Vector3(e.x, -e.y, -e.z);
@@ -393,19 +387,19 @@ public class BVHTraceVisualizer : MonoBehaviour
         corners[6] = c + new Vector3(e.x, e.y, e.z);
         corners[7] = c + new Vector3(-e.x, e.y, e.z);
 
-        // bottom
+        
         Debug.DrawLine(corners[0], corners[1], col, duration);
         Debug.DrawLine(corners[1], corners[2], col, duration);
         Debug.DrawLine(corners[2], corners[3], col, duration);
         Debug.DrawLine(corners[3], corners[0], col, duration);
 
-        // top
+       
         Debug.DrawLine(corners[4], corners[5], col, duration);
         Debug.DrawLine(corners[5], corners[6], col, duration);
         Debug.DrawLine(corners[6], corners[7], col, duration);
         Debug.DrawLine(corners[7], corners[4], col, duration);
 
-        // sides
+        
         Debug.DrawLine(corners[0], corners[4], col, duration);
         Debug.DrawLine(corners[1], corners[5], col, duration);
         Debug.DrawLine(corners[2], corners[6], col, duration);

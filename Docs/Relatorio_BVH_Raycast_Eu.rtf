@@ -1,0 +1,47 @@
+{\rtf1\ansi\deff0
+{\fonttbl{\f0 Calibri;}}
+\viewkind4\uc1\pard\sa200\sl276\slmult1\f0\fs24\b Relat\'f3rio (vers\'e3o em primeira pessoa)\b0\par
+\par
+\b Aluno:\b0 Albram da Silva Ramos\par
+\b Professor:\b0 Jos\'e9 Ricardo\par
+\b Data:\b0 [DD/MM/AAAA]\par
+\par
+\b Resumo\b0\par
+Neste trabalho eu implementei um sistema de detecc\'e3o de tiros em Unity usando Ray Casting otimizado por Bounding Volume Hierarchies (BVH). Minha implementa\'e7\'e3o inclui a constru\'e7\'e3o da BVH por inimigo, compara\'e7\'e3o de desempenho entre a abordagem for\'e7a bruta e a com BVH, e ferramentas visuais para depura\'e7\'e3o (HUD e Gizmos).\par
+\par
+\b Objetivos\b0\par
+Os objetivos que eu segui foram:\par
+- Criar cena com jogador capaz de atirar em inimigos;\par
+- Implementar Ray Casting para detectar acertos;\par
+- Construir BVH por inimigo e us\'e1-lo para otimizar a busca;\par
+- Medir e comparar performance com e sem BVH;\par
+- Visualizar a hierarquia para depura\'e7\'e3o.\par
+\par
+\b Implementa\'e7\'e3o (minha descri\'e7\'e3o)\b0\par
+Trabalhei nos seguintes componentes principais:
+\par
+- `EnemyBVH` : responsible por coletar os `SkinnedMeshRenderer` de cada inimigo, preparar meshes para colis\'e3o (bake quando necess\'e1rio) e construir a `BVHNode` recursiva. Adicionei op\'e7\'f5es para controlar baking em runtime (`runtimeBake`, `bakeInterval`).\par
+- `BVHNode` : representa cada n\'f3 da \{BVH\} com `bounds`, e m\'e9todos `Intersect` e `IntersectTrace` (o segundo coleta o tra\u00e7o de n\'f3s visitados, folhas atingidas e colliders exatos).\par
+- `RaycastShooterBVH` : implementa o comportamento de tiro, executa a medicao com `Stopwatch` para `timeWithout` (for\'e7a bruta) e `timeWith` (uso do BVH) e integra os visualizadores.\par
+- `ShotResultDisplay` : HUD com os tempos, speedup e informa\'e7\'f5es do alvo atingido; posi\'e7\'e3o configur\'e1vel.\par
+- `BVHTraceVisualizer` : painel e desenho de AABBs no mundo com cores para destacar caminho, folhas atingidas, AABBs passadas e n\'f3s visitados.
+\par
+Enquanto implementava, decidi manter a colis\'e3o final a n\'f3vel de mesh (`MeshCollider.Raycast`) para garantir precis\'e3o, mesmo que mais custoso. Para reduzir impacto no desempenho, implementei rebake condicional e evitei logs em loops quentes.\par
+\par
+\b Medi\'e7\'f5es e resultados (o que eu observei)\b0\par
+Usei `Stopwatch` no m\'e9todo de tiro para medir os dois tempos. Em execu\'e7\'e3o normal, antes das otimiza\'e7\'f5es, notei queda de FPS com ~10 inimigos (\~30 FPS). Depois de reduzir o rebake e remover logs, a taxa melhorou e o uso do BVH passou a apresentar ganho (timeWith << timeWithout) na maioria dos testes.\par
+\par
+\b Problemas que enfrentei e como solucionei\b0\par
+- Baking constante das malhas causava overhead: resolvi introduzindo `runtimeBake = false` por padr\'e3o e `bakeInterval` configur\'e1vel; tamb\'e9m comparei execu\'e7\'f5es com e sem rebake para isolar o custo.\par
+- Logs excessivos em loops quentes afetavam medida e fps: retirei os logs e deixei apenas o HUD para exibicao.\par
+- O visualizador inicialmente misturava traces de v\'e1rios inimigos e as folhas verdes n\'e3o apareciam: corrigi criando listas por-inimigo e capturando `MeshCollider` atingido para mapear a leaf correta.\par
+\par
+\b Conclus\'e3o pessoal\b0\par
+Com este projeto eu aprendi a equilibrar precis\'e3o e desempenho: BVH realmente reduz testes caros de malha em cen\'e1rios com muitos objetos, mas seu benef\'edcio pode ser anulado por custos auxiliares (rebake, logs, aloca\'e7\'f5es). A implementa\'e7\'e3o fornece uma base para testes e apresenta ferramentas visuais que facilitam a demonstra\'e7\'e3o e defendem a an\'e1lise do algoritmo.\par
+\par
+\b Anexos\b0\par
+- Arquivos de c\'f3digo no reposit\'f3rio.\par
+- Capturas de tela e v\'edeo de demonstra\'e7\'e3o (incluir arquivo MP4).\par
+\par
+\pard\sa200\sl276\slmult1\f0\fs20 Assinatura:\tab Albram da Silva Ramos\par
+}

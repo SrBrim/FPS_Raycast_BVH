@@ -37,7 +37,6 @@ public class EnemyBVH : MonoBehaviour
 
         foreach (var smr in meshes)
         {
-            // cria/obtém MeshCollider no mesmo GameObject do SkinnedMeshRenderer
             MeshCollider col = smr.GetComponent<MeshCollider>();
             if (col == null)
                 col = smr.gameObject.AddComponent<MeshCollider>();
@@ -46,7 +45,7 @@ public class EnemyBVH : MonoBehaviour
             smr.BakeMesh(baked);
 
             col.sharedMesh = baked;
-            col.convex = false; // ajuste conforme necessidade (convex required para rigidbody convex)
+            col.convex = false; 
 
             bakedMeshes.Add(baked);
             targetColliders.Add(col);
@@ -57,25 +56,25 @@ public class EnemyBVH : MonoBehaviour
 
         root = BuildTree(meshes);
 
-        // inicializa timer
+       
         bakeTimer = bakeInterval;
     }
 
     void Update()
     {
-        // Atualiza bounds do BVH antes de tudo
+       
         if (root != null)
             UpdateNodeBounds(root);
 
-        // Se não for para fazer baking runtime, pula atualizações caras
+        
         if (!runtimeBake) return;
 
-        // Throttle: só verifica mudanças a cada 'bakeInterval' segundos
+        
         bakeTimer -= Time.deltaTime;
         if (bakeTimer > 0f) return;
         bakeTimer = bakeInterval;
 
-        // Verifica cada mesh e rebake apenas se seus bounds mudaram o suficiente
+        
         for (int i = 0; i < meshes.Count; i++)
         {
             if (meshes[i] == null || bakedMeshes[i] == null || targetColliders[i] == null)
@@ -91,13 +90,13 @@ public class EnemyBVH : MonoBehaviour
             if (!significantChange)
                 continue;
 
-            // Só aqui fazemos o bake e reatribuição ao collider (operação cara)
+          
             meshes[i].BakeMesh(bakedMeshes[i]);
             targetColliders[i].sharedMesh = bakedMeshes[i];
 
             lastBounds[i] = current;
 
-            // Debug leve para ajudar a diagnosticar
+           
             Debug.Log($"Rebake mesh '{meshes[i].name}' em '{name}'");
         }
     }
