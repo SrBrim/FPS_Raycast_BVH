@@ -8,14 +8,21 @@ public class BulletTracer : MonoBehaviour
 
     private LineRenderer lr;
     private float timer;
+    private Material instanceMat;
 
     void Awake()
     {
         lr = GetComponent<LineRenderer>();
         timer = duration;
 
-        if (widthCurve != null)
-            lr.widthCurve = widthCurve;
+        // garante uma curva padrão se não for configurada
+        if (widthCurve == null)
+            widthCurve = AnimationCurve.Linear(0f, 0.05f, 1f, 0f);
+
+        lr.widthCurve = widthCurve;
+
+        // cache do material para evitar acessar shared material a cada frame
+        instanceMat = lr.material;
     }
 
     public void SetPositions(Vector3 start, Vector3 end)
@@ -29,10 +36,13 @@ public class BulletTracer : MonoBehaviour
     {
         timer -= Time.deltaTime;
 
-        float alpha = timer / duration;
-        Color c = lr.material.color;
-        c.a = alpha;
-        lr.material.color = c;
+        float alpha = Mathf.Clamp01(timer / duration);
+        if (instanceMat != null)
+        {
+            Color c = instanceMat.color;
+            c.a = alpha;
+            instanceMat.color = c;
+        }
 
         if (timer <= 0f)
             Destroy(gameObject);

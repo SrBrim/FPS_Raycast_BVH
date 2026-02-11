@@ -2,6 +2,7 @@
 using UnityEngine.InputSystem;
 using System.Diagnostics;
 using Debug = UnityEngine.Debug;
+using System.Collections.Generic;
 
 public class RaycastShooterBVH : MonoBehaviour
 {
@@ -58,6 +59,9 @@ public class RaycastShooterBVH : MonoBehaviour
         EnemyBVH[] enemies =
             FindObjectsByType<EnemyBVH>(FindObjectsSortMode.None);
 
+        // Debug reduzido: só informação básica
+        Debug.Log($"Shoot: enemies encontrados = {enemies.Length}");
+
         Stopwatch sw = new Stopwatch();
 
         // ==============================
@@ -75,7 +79,15 @@ public class RaycastShooterBVH : MonoBehaviour
             foreach (var col in meshColliders)
             {
                 bruteTests++;
-                col.Raycast(shootRay, out _, maxDistance);
+                if (col == null || !col.enabled || !col.gameObject.activeInHierarchy)
+                {
+                    continue;
+                }
+
+                if (col.Raycast(shootRay, out RaycastHit bruteHit, maxDistance))
+                {
+                    // não logar aqui; usaremos display
+                }
             }
         }
 
@@ -92,18 +104,27 @@ public class RaycastShooterBVH : MonoBehaviour
         RaycastHit closestHit = new RaycastHit();
         float closestDistance = Mathf.Infinity;
 
+        // prepare trace lists
+        List<BVHNode> visitedNodes = new List<BVHNode>();
+        List<BVHNode> passedAABB = new List<BVHNode>();
+        List<BVHNode> hitLeaves = new List<BVHNode>();
+
         sw.Start();
 
         foreach (var enemy in enemies)
         {
             if (enemy.root == null)
+            {
                 continue;
+            }
 
             bvhRootTests++;
 
-            if (enemy.root.Intersect(shootRay, out RaycastHit bvhHit))
+            // usa IntersectTrace para coletar informações do caminho
+            if (enemy.root.IntersectTrace(shootRay, out RaycastHit bvhHit, visitedNodes, passedAABB, hitLeaves))
             {
-                if (bvhHit.distance < closestDistance)
+                // Filtra por maxDistance para manter consistência com a verificação força bruta
+                if (bvhHit.distance <= maxDistance && bvhHit.distance < closestDistance)
                 {
                     closestDistance = bvhHit.distance;
                     closestHit = bvhHit;
@@ -115,23 +136,30 @@ public class RaycastShooterBVH : MonoBehaviour
         sw.Stop();
         double timeWith = sw.Elapsed.TotalMilliseconds;
 
-        // ==============================
-        // 📊 DEBUG LIMPO
-        // ==============================
-        Debug.Log(
-            "\n===== RESULTADO DO TIRO =====\n" +
-            "Sem BVH: " + timeWithout.ToString("F4") + " ms\n" +
-            "Com BVH: " + timeWith.ToString("F4") + " ms\n" +
-            "Testes Força Bruta (mesh): " + bruteTests + "\n" +
-            "Testes BVH (raiz): " + bvhRootTests + "\n" +
-            "Redução: " +
-            ((1 - (timeWith / timeWithout)) * 100f).ToString("F2") +
-            "%\n============================="
-        );
+        // Calcula redução (speedup)
+        double speedupPct = 0.0;
+        double speedupRatio = 0.0;
+        if (timeWithout > 0.0)
+        {
+            speedupPct = (1.0 - (timeWith / timeWithout)) * 100.0;
+            if (timeWith > 0.0) speedupRatio = timeWithout / timeWith;
+        }
 
-        // ==============================
-        // 🔥 TRACER VISUAL
-        // ==============================
+        Debug.Log($"Tiro: timeWithout={timeWithout:F4}ms, timeWith={timeWith:F4}ms, speedup={speedupPct:F2}% (x{speedupRatio:F2})");
+
+        // Mostra resultado formatado no painel
+        string hitName = closestEnemy != null ? closestHit.collider.name : string.Empty;
+        Vector3 hitPoint = closestEnemy != null ? closestHit.point : Vector3.zero;
+        bool didHit = closestEnemy != null;
+
+        ShotResultDisplay.Show(timeWithout, timeWith, bruteTests, bvhRootTests, hitName, hitPoint, didHit);
+
+        // Envia trace para visualizador BVH (se houver dados)
+        if (visitedNodes.Count > 0)
+        {
+            BVHTraceVisualizer.ShowTrace(visitedNodes, passedAABB, hitLeaves, 6f);
+        }
+
         Vector3 finalHitPoint =
             closestEnemy != null
             ? closestHit.point
@@ -146,9 +174,6 @@ public class RaycastShooterBVH : MonoBehaviour
                 .SetPositions(firePoint.position, finalHitPoint);
         }
 
-        // ==============================
-        // 💀 DESTRUIR INIMIGO
-        // ==============================
         if (destroyOnHit && closestEnemy != null)
         {
             Destroy(closestEnemy.gameObject);
